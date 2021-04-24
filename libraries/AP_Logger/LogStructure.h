@@ -127,6 +127,7 @@ const struct MultiplierStructure log_Multipliers[] = {
 #include <AP_Camera/LogStructure.h>
 #include <AP_Baro/LogStructure.h>
 #include <AP_VisualOdom/LogStructure.h>
+#include <AC_PrecLand/LogStructure.h>
 
 // structure used to define logging format
 struct LogStructure {
@@ -404,6 +405,7 @@ struct PACKED log_PID {
     float   D;
     float   FF;
     float   Dmod;
+    float   slew_rate;
     uint8_t limit;
 };
 
@@ -845,10 +847,10 @@ struct PACKED log_PSCZ {
 #define ISBD_UNITS  "s--ooo"
 #define ISBD_MULTS  "F--???"
 
-#define PID_LABELS "TimeUS,Tar,Act,Err,P,I,D,FF,Dmod,Limit"
-#define PID_FMT    "QffffffffB"
-#define PID_UNITS  "s---------"
-#define PID_MULTS  "F---------"
+#define PID_LABELS "TimeUS,Tar,Act,Err,P,I,D,FF,Dmod,SRate,Limit"
+#define PID_FMT    "QfffffffffB"
+#define PID_UNITS  "s----------"
+#define PID_MULTS  "F----------"
 
 // @LoggerMessage: ACC
 // @Description: IMU accelerometer data
@@ -1191,7 +1193,8 @@ struct PACKED log_PSCZ {
 // @Field: D: derivative part of PID
 // @Field: FF: controller feed-forward portion of response
 // @Field: Dmod: scaler applied to D gain to reduce limit cycling
-// @Field: Limit: 1 if I term is limited due to output saturation 
+// @Field: SRate: slew rate used in slew limiter
+// @Field: Limit: 1 if I term is limited due to output saturation
 
 // @LoggerMessage: PM
 // @Description: autopilot system performance and general data dumping ground
@@ -1469,6 +1472,7 @@ LOG_STRUCTURE_FROM_GPS \
     { LOG_RSSI_MSG, sizeof(log_RSSI), \
       "RSSI",  "Qf",     "TimeUS,RXRSSI", "s-", "F-"  }, \
 LOG_STRUCTURE_FROM_BARO \
+LOG_STRUCTURE_FROM_PRECLAND \
     { LOG_POWR_MSG, sizeof(log_POWR), \
       "POWR","QffHHB","TimeUS,Vcc,VServo,Flags,AccFlags,Safety", "svv---", "F00---" },  \
     { LOG_CMD_MSG, sizeof(log_Cmd), \
@@ -1528,6 +1532,10 @@ LOG_STRUCTURE_FROM_CAMERA \
       "PIDA", PID_FMT,  PID_LABELS, PID_UNITS, PID_MULTS }, \
     { LOG_PIDS_MSG, sizeof(log_PID), \
       "PIDS", PID_FMT,  PID_LABELS, PID_UNITS, PID_MULTS }, \
+    { LOG_PIDN_MSG, sizeof(log_PID), \
+      "PIDN", PID_FMT,  PID_LABELS, PID_UNITS, PID_MULTS }, \
+    { LOG_PIDE_MSG, sizeof(log_PID), \
+      "PIDE", PID_FMT,  PID_LABELS, PID_UNITS, PID_MULTS }, \
     { LOG_DSTL_MSG, sizeof(log_DSTL), \
       "DSTL", "QBfLLeccfeffff", "TimeUS,Stg,THdg,Lat,Lng,Alt,XT,Travel,L1I,Loiter,Des,P,I,D", "s??DUm--------", "F??000--------" }, \
     { LOG_VIBE_MSG, sizeof(log_Vibe), \
@@ -1645,6 +1653,8 @@ enum LogMessages : uint8_t {
     LOG_PIDY_MSG,
     LOG_PIDA_MSG,
     LOG_PIDS_MSG,
+    LOG_PIDN_MSG,
+    LOG_PIDE_MSG,
     LOG_DSTL_MSG,
     LOG_VIBE_MSG,
     LOG_RPM_MSG,
@@ -1686,6 +1696,7 @@ enum LogMessages : uint8_t {
     LOG_PSC_MSG,
     LOG_PSCZ_MSG,
     LOG_RAW_PROXIMITY_MSG,
+    LOG_IDS_FROM_PRECLAND,
 
     _LOG_LAST_MSG_
 };

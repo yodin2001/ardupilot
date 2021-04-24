@@ -18,6 +18,9 @@
  */
 #pragma once
 
+// we want to cope with both revision XY chips and newer chips
+#define STM32_ENFORCE_H7_REV_XY
+
 #ifndef STM32_LSECLK
 #define STM32_LSECLK 32768U
 #endif
@@ -59,7 +62,7 @@
  */
 #define STM32_NOCACHE_MPU_REGION            MPU_REGION_6
 #define STM32_NOCACHE_SRAM1_SRAM2           FALSE
-#define STM32_NOCACHE_SRAM3                 TRUE
+#define STM32_NOCACHE_SRAM3                 FALSE
 
 /*
  * PWR system settings.

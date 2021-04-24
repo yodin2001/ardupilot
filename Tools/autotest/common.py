@@ -1274,7 +1274,7 @@ class AutoTest(ABC):
 
     def __del__(self):
         if self.rc_thread is not None:
-            self.progress("Joining thread in __del__")
+            self.progress("Joining RC thread in __del__")
             self.rc_thread_should_quit = True
             self.rc_thread.join()
             self.rc_thread = None
@@ -1570,6 +1570,16 @@ class AutoTest(ABC):
 
     def reboot_sitl_mav(self, required_bootcount=None):
         """Reboot SITL instance using mavlink and wait for it to reconnect."""
+        # we must make sure that stats have been reset - otherwise
+        # when we reboot we'll reset statistics again and lose our
+        # STAT_BOOTCNT increment:
+        tstart = time.time()
+        while True:
+            if time.time() - tstart > 30:
+                raise NotAchievedException("STAT_RESET did not go non-zero")
+            if self.get_parameter('STAT_RESET') != 0:
+                break
+
         old_bootcount = self.get_parameter('STAT_BOOTCNT')
         # ardupilot SITL may actually NAK the reboot; replace with
         # run_cmd when we don't do that.
@@ -2191,14 +2201,10 @@ class AutoTest(ABC):
 
     def close(self):
         """Tidy up after running all tests."""
-        if self.use_map:
-            self.mavproxy.send("module unload map\n")
-            self.mavproxy.expect("Unloaded module map")
 
         if self.mav is not None:
             self.mav.close()
             self.mav = None
-        util.pexpect_close(self.mavproxy)
         self.stop_SITL()
 
         valgrind_log = util.valgrind_log_filepath(binary=self.binary,
@@ -3473,6 +3479,7 @@ class AutoTest(ABC):
                     bad_channels += " (ch=%u want=%u got=%u)" % (chan, map_copy[chan], chan_pwm)
                     break
             if len(bad_channels) == 0:
+                self.progress("RC values good")
                 break
             self.progress("RC values bad:%s" % bad_channels)
             if not self.rc_thread.is_alive():
@@ -4977,6 +4984,15 @@ class AutoTest(ABC):
             **kwargs
         )
 
+    def wait_distance_to_waypoint(self, wp_num, distance_min, distance_max, **kwargs):
+        # TODO: use mission_request_partial_list_send
+        wps = self.download_using_mission_protocol(mavutil.mavlink.MAV_MISSION_TYPE_MISSION)
+        m = wps[wp_num]
+        self.progress("m: %s" % str(m))
+        loc = mavutil.location(m.x / 1.0e7, m.y / 1.0e7, 0, 0)
+        self.progress("loc: %s" % str(loc))
+        self.wait_distance_to_location(loc, distance_min, distance_max, **kwargs)
+
     def wait_distance_to_location(self, location, distance_min, distance_max, timeout=30, **kwargs):
         """Wait for flight of a given distance."""
         assert distance_min <= distance_max, "Distance min should be less than distance max."
@@ -5605,14 +5621,14 @@ Also, ignores heartbeats not from our target system'''
         buildlogs directory'''
         to_dir = self.logs_dir
         # move binary log files
-        for log in self.bin_logs():
+        for log in sorted(self.bin_logs()):
             bname = os.path.basename(log)
             newname = os.path.join(to_dir, "%s-%s-%s" % (self.log_name(), name, bname))
             print("Renaming %s to %s" % (log, newname))
             shutil.move(log, newname)
         # move core files
         save_binaries = False
-        for log in glob.glob("core*"):
+        for log in sorted(glob.glob("core*")):
             bname = os.path.basename(log)
             newname = os.path.join(to_dir, "%s-%s-%s" % (bname, self.log_name(), name))
             print("Renaming %s to %s" % (log, newname))
@@ -5695,6 +5711,10 @@ Also, ignores heartbeats not from our target system'''
 
         if self._mavproxy is not None:
             self.progress("Stopping auto-started mavproxy")
+            if self.use_map:
+                self.mavproxy.send("module unload map\n")
+                self.mavproxy.expect("Unloaded module map")
+
             self.expect_list_remove(self._mavproxy)
             util.pexpect_close(self._mavproxy)
             self._mavproxy = None
@@ -5836,7 +5856,6 @@ Also, ignores heartbeats not from our target system'''
         return self.sitl.isalive()
 
     def autostart_mavproxy(self):
-        return False
         return self.use_map
 
     def init(self):
@@ -8607,7 +8626,7 @@ switch value'''
                     self.check_logs("FRAMEWORK")
 
         if self.rc_thread is not None:
-            self.progress("Joining thread")
+            self.progress("Joining RC thread")
             self.rc_thread_should_quit = True
             self.rc_thread.join()
             self.rc_thread = None
@@ -8986,7 +9005,7 @@ switch value'''
                 mavproxy.expect("sitl_accelcal: sending attitude, please wait..", timeout=timeout)
                 mavproxy.expect("sitl_accelcal: attitude detected, please press any key..", timeout=timeout)
                 mavproxy.send("\n")
-            mavproxy.expect("APM: Calibration successful", timeout=timeout)
+            mavproxy.expect(".*Calibration successful", timeout=timeout)
             self.drain_mav()
 
             self.progress("Checking results")
@@ -9149,6 +9168,20 @@ switch value'''
             self.wait_statustext("PreArm: Motors Emergency Stopped", check_context=True)
             self.context_pop()
             self.reboot_sitl()
+
+        if self.is_rover():
+            self.start_subtest("Testing using buttons for changing modes")
+            self.context_push()
+            if not self.mode_is('MANUAL'):
+                raise NotAchievedException("Bad mode")
+            self.set_parameter("BTN_FUNC%u" % btn, 53)  # steering mode
+            # press button:
+            self.set_parameter("SIM_PIN_MASK", mask)
+            self.wait_mode('STEERING')
+            # release button:
+            self.set_parameter("SIM_PIN_MASK", 0)
+            self.wait_mode('MANUAL')
+            self.context_pop()
 
     def compare_number_percent(self, num1, num2, percent):
         if num1 == 0 and num2 == 0:
