@@ -36,7 +36,7 @@ const AP_Param::GroupInfo AC_Fence::var_info[] = {
     // @DisplayName: Fence Action
     // @Description: What action should be taken when fence is breached
     // @Values{Copter}: 0:Report Only,1:RTL or Land,2:Always Land,3:SmartRTL or RTL or Land,4:Brake or Land,5:SmartRTL or Land
-    // @Values{Rover}: 0:Report Only,1:RTL,2:Hold,3:SmartRTL,4:SmartRTL or Hold
+    // @Values{Rover}: 0:Report Only,1:RTL or Hold,2:Hold,3:SmartRTL or RTL or Hold,4:SmartRTL or Hold
     // @Values{Plane}: 0:Report Only,1:RTL,6:Guided,7:GuidedThrottlePass
     // @Values: 0:Report Only,1:RTL or Land
     // @User: Standard
@@ -281,6 +281,12 @@ bool AC_Fence::pre_arm_check_alt(const char* &fail_msg) const
 bool AC_Fence::pre_arm_check(const char* &fail_msg) const
 {
     fail_msg = nullptr;
+
+    // if fences are enabled but none selected fail pre-arm check
+    if (enabled() && !present()) {
+        fail_msg = "Fences enabled, but none selected";
+        return false;
+    }
 
     // if not enabled or not fence set-up always return true
     if ((!_enabled && !_auto_enabled) || !_enabled_fences) {
