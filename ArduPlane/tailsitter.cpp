@@ -169,11 +169,8 @@ void QuadPlane::tailsitter_output(void)
     SRV_Channels::set_output_scaled(SRV_Channel::k_rudder, (motors->get_roll()+motors->get_roll_ff())*SERVO_MAX);
 
     if (hal.util->get_soft_armed()) {
-        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, motors->thrust_to_actuator(motors->get_throttle()) * 100);
         // scale surfaces for throttle
         tailsitter_speed_scaling();
-    } else {
-        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, motors->get_throttle() * 100);
     }
 
     tilt_left = 0.0f;
@@ -281,7 +278,10 @@ bool QuadPlane::tailsitter_transition_vtol_complete(void) const
             return true;
         }
     }
-    const float trans_angle = get_tailsitter_transition_angle_vtol();
+    // limit completion angle to just below fixed wing pitch limit
+    const float margin_deg = 3;
+    const float trans_angle = MIN(get_tailsitter_transition_angle_vtol(),
+                                  plane.aparm.pitch_limit_max_cd*0.01-margin_deg);
     if (labs(plane.ahrs.pitch_sensor) > trans_angle*100) {
         gcs().send_text(MAV_SEVERITY_INFO, "Transition VTOL done");
         return true;
