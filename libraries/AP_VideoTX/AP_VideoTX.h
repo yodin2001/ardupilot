@@ -45,6 +45,8 @@ public:
         VTX_PITMODE_UNTIL_ARM = (1 << 1),
         VTX_PITMODE_ON_DISARM = (1 << 2),
         VTX_UNLOCKED          = (1 << 3),
+		VTX_LOWPOW_UNTIL_ARM  = (1 << 4),
+		VTX_LOWPOW_ON_DISARM  = (1 << 5),
     };
 
     enum VideoBand {

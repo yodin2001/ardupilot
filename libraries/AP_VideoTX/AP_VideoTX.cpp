@@ -111,6 +111,9 @@ bool AP_VideoTX::init(void)
     _current_band = _band;
     _current_channel = _channel;
     _current_frequency = _frequency_mhz;
+    if(has_option(VideoOptions::VTX_PITMODE_UNTIL_ARM)){
+    	_options |= uint8_t(VideoOptions::VTX_PITMODE);
+        }
     _current_options = _options;
     _current_enabled = _enabled;
     _initialized = true;
@@ -229,12 +232,21 @@ void AP_VideoTX::update(void)
     }
 #endif
     // manipulate pitmode if pitmode-on-disarm or power-on-arm is set
-    if (has_option(VideoOptions::VTX_PITMODE_ON_DISARM) || has_option(VideoOptions::VTX_PITMODE_UNTIL_ARM)) {
-        if (hal.util->get_soft_armed() && has_option(VideoOptions::VTX_PITMODE)) {
-            _options &= ~uint8_t(VideoOptions::VTX_PITMODE);
-        } else if (!hal.util->get_soft_armed() && !has_option(VideoOptions::VTX_PITMODE)
-            && has_option(VideoOptions::VTX_PITMODE_ON_DISARM)) {
+    if (has_option(VideoOptions::VTX_PITMODE_ON_DISARM) || has_option(VideoOptions::VTX_PITMODE_UNTIL_ARM) || has_option(VideoOptions::VTX_LOWPOW_UNTIL_ARM)|| has_option(VideoOptions::VTX_LOWPOW_ON_DISARM)){
+        if (hal.util->get_soft_armed()) {
+        	if(has_option(VideoOptions::VTX_PITMODE)) {
+        		_options &= ~uint8_t(VideoOptions::VTX_PITMODE);
+        	}
+        	//setting max power when armed
+        	_power_mw.set(_max_power_mw);
+
+        } else if (!hal.util->get_soft_armed()) {
+        	if(!has_option(VideoOptions::VTX_PITMODE) && has_option(VideoOptions::VTX_PITMODE_ON_DISARM)) {
             _options |= uint8_t(VideoOptions::VTX_PITMODE);
+        	}
+        	if(has_option(VideoOptions::VTX_LOWPOW_ON_DISARM)){
+        		_power_mw.set_and_save_ifchanged(25);
+        	}
         }
     }
 }
