@@ -27,9 +27,6 @@
 #if HAL_SUPPORT_RCOUT_SERIAL
 
 #define HAVE_AP_BLHELI_SUPPORT
-#ifndef HAL_WITH_ESC_TELEM
-#define HAL_WITH_ESC_TELEM TRUE
-#endif
 
 #include <AP_ESC_Telem/AP_ESC_Telem_Backend.h>
 
@@ -285,7 +282,6 @@ private:
     bool BL_VerifyFlash(const uint8_t *buf, uint16_t n);
     void blheli_process_command(void);
     void run_connection_test(uint8_t chan);
-    uint8_t telem_crc8(uint8_t crc, uint8_t crc_seed) const;
     void read_telemetry_packet(void);
     void log_bidir_telemetry(void);
 
