@@ -244,7 +244,7 @@ void SRV_Channels::set_digital_outputs(uint16_t dig_mask, uint16_t rev_mask) {
         SRV_Channel &c = channels[i];
         if (digital_mask & (1U<<i)) {
             c.servo_min.set(1000);
-            c.servo_max.set(2000);
+            //c.servo_max.set(2000);
             if (reversible_mask & (1U<<i)) {
                 c.servo_trim.set(1500);
             } else {
