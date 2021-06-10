@@ -52,9 +52,7 @@ void Plane::adjust_altitude_target()
         set_target_altitude_location(temp);
     } else 
 #endif // OFFBOARD_GUIDED == ENABLED
-      if (control_mode->update_target_altitude()) {
-          // handled in mode specific code
-    } else if (landing.is_flaring()) {
+      if (landing.is_flaring()) {
         // during a landing flare, use TECS_LAND_SINK as a target sink
         // rate, and ignores the target altitude
         set_target_altitude_location(next_WP_loc);
@@ -137,9 +135,9 @@ void Plane::setup_glide_slope(void)
 }
 
 /*
-  return RTL altitude as AMSL cm
+  return RTL altitude as AMSL altitude
  */
-int32_t Plane::get_RTL_altitude_cm() const
+int32_t Plane::get_RTL_altitude() const
 {
     if (g.RTL_altitude_cm < 0) {
         return current_loc.alt;

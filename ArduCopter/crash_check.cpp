@@ -14,6 +14,7 @@
 
 // Yaw imbalance check
 #define YAW_IMBALANCE_IMAX_THRESHOLD 0.75f
+#define YAW_IMBALANCE_I_THERSHOLD 0.1f
 #define YAW_IMBALANCE_WARN_MS 10000
 
 // crash_check - disarms motors if a crash has been detected
@@ -208,7 +209,8 @@ void Copter::yaw_imbalance_check()
     }
 
     const float I_max = attitude_control->get_rate_yaw_pid().imax();
-    if ((is_positive(I_max) && ((I > YAW_IMBALANCE_IMAX_THRESHOLD * I_max) || (is_equal(I_term,I_max))))) {
+    if ((is_positive(I_max) && ((I > YAW_IMBALANCE_IMAX_THRESHOLD * I_max) || (is_equal(I_term,I_max)))) ||
+        (I >YAW_IMBALANCE_I_THERSHOLD)) {
         // filtered using over precentage of I max or unfiltered = I max
         // I makes up more than precentage of total available control power
         const uint32_t now = millis();

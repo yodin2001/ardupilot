@@ -35,11 +35,7 @@
 #if HAL_MAX_CAN_PROTOCOL_DRIVERS
 extern const AP_HAL::HAL& hal;
 
-#if HAL_ENABLE_LIBUAVCAN_DRIVERS
 #define debug_can(level_debug, fmt, args...) do { AP::can().log_text(level_debug, "KDECAN", fmt, ##args); } while (0)
-#else
-#define debug_can(level_debug, fmt, args...)
-#endif
 
 #define DEFAULT_NUM_POLES 14
 
@@ -437,7 +433,6 @@ void AP_KDECAN::loop()
             int16_t res = _can_iface->receive(frame, rx_time, flags);
 
             if (res == 1) {
-#if HAL_WITH_ESC_TELEM
                 frame_id_t id { .value = frame.id & AP_HAL::CANFrame::MaskExtID };
 
                 // check if frame is valid: directed at autopilot, doesn't come from broadcast and ESC was detected before
@@ -471,7 +466,6 @@ void AP_KDECAN::loop()
                             break;
                     }
                 }
-#endif // HAL_WITH_ESC_TELEM
             }
         }
 

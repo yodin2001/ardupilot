@@ -82,11 +82,6 @@ def options(opt):
         default=False,
         help='Configure as debug variant.')
 
-    g.add_option('--coverage',
-                 action='store_true',
-                 default=False,
-                 help='Configure coverage flags.')
-
     g.add_option('--Werror',
         action='store_true',
         default=False,
@@ -289,7 +284,6 @@ def configure(cfg):
         
     cfg.env.BOARD = cfg.options.board
     cfg.env.DEBUG = cfg.options.debug
-    cfg.env.COVERAGE = cfg.options.coverage
     cfg.env.AUTOCONFIG = cfg.options.autoconfig
 
     _set_build_context_variant(cfg.env.BOARD)
@@ -297,7 +291,6 @@ def configure(cfg):
 
     cfg.env.BOARD = cfg.options.board
     cfg.env.DEBUG = cfg.options.debug
-    cfg.env.COVERAGE = cfg.options.coverage
     cfg.env.ENABLE_ASSERTS = cfg.options.enable_asserts
     cfg.env.BOOTLOADER = cfg.options.bootloader
     cfg.env.ENABLE_MALLOC_GUARD = cfg.options.enable_malloc_guard
@@ -371,12 +364,6 @@ def configure(cfg):
 
     cfg.start_msg('Debug build')
     if cfg.env.DEBUG:
-        cfg.end_msg('enabled')
-    else:
-        cfg.end_msg('disabled', color='YELLOW')
-
-    cfg.start_msg('Coverage build')
-    if cfg.env.COVERAGE:
         cfg.end_msg('enabled')
     else:
         cfg.end_msg('disabled', color='YELLOW')

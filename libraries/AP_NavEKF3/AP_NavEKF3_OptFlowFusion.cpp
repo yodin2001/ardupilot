@@ -25,8 +25,6 @@ void NavEKF3_core::SelectFlowFusion()
         optFlowFusionDelayed = false;
     }
 
-    of_elements ofDataDelayed;      // OF data at the fusion time horizon
-
     // Check for data at the fusion time horizon
     const bool flowDataToFuse = storedOF.recall(ofDataDelayed, imuDataDelayed.time_ms);
 
@@ -49,7 +47,7 @@ void NavEKF3_core::SelectFlowFusion()
     // if have valid flow or range measurements, fuse data into a 1-state EKF to estimate terrain height
     if (((flowDataToFuse && (frontend->_flowUse == FLOW_USE_TERRAIN)) || rangeDataToFuse) && tiltOK) {
         // Estimate the terrain offset (runs a one state EKF)
-        EstimateTerrainOffset(ofDataDelayed);
+        EstimateTerrainOffset();
     }
 
     // Fuse optical flow data into the main filter
@@ -58,7 +56,7 @@ void NavEKF3_core::SelectFlowFusion()
             // Set the flow noise used by the fusion processes
             R_LOS = sq(MAX(frontend->_flowNoise, 0.05f));
             // Fuse the optical flow X and Y axis data into the main filter sequentially
-            FuseOptFlow(ofDataDelayed);
+            FuseOptFlow();
         }
     }
 }
@@ -68,7 +66,7 @@ Estimation of terrain offset using a single state EKF
 The filter can fuse motion compensated optical flow rates and range finder measurements
 Equations generated using https://github.com/PX4/ecl/tree/master/EKF/matlab/scripts/Terrain%20Estimator
 */
-void NavEKF3_core::EstimateTerrainOffset(const of_elements &ofDataDelayed)
+void NavEKF3_core::EstimateTerrainOffset()
 {
     // horizontal velocity squared
     float velHorizSq = sq(stateStruct.velocity.x) + sq(stateStruct.velocity.y);
@@ -266,7 +264,7 @@ void NavEKF3_core::EstimateTerrainOffset(const of_elements &ofDataDelayed)
  * https://github.com/PX4/ecl/blob/master/matlab/scripts/Inertial%20Nav%20EKF/GenerateNavFilterEquations.m
  * Requires a valid terrain height estimate.
 */
-void NavEKF3_core::FuseOptFlow(const of_elements &ofDataDelayed)
+void NavEKF3_core::FuseOptFlow()
 {
     Vector24 H_LOS;
     Vector3f relVelSensor;

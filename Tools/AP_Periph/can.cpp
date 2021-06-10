@@ -68,10 +68,6 @@
 #include "i2c.h"
 #include <utility>
 
-#if HAL_NUM_CAN_IFACES >= 2
-#include <AP_CANManager/AP_CANSensor.h>
-#endif
-
 extern const AP_HAL::HAL &hal;
 extern AP_Periph_FW periph;
 
@@ -99,16 +95,11 @@ static uint8_t transfer_id;
 #define CAN_PROBE_CONTINUOUS 0
 #endif
 
-#ifndef AP_PERIPH_ENFORCE_AT_LEAST_ONE_PORT_IS_UAVCAN_1MHz
-#define AP_PERIPH_ENFORCE_AT_LEAST_ONE_PORT_IS_UAVCAN_1MHz 1
-#endif
-
 #if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-ChibiOS::CANIface* AP_Periph_FW::can_iface_periph[HAL_NUM_CAN_IFACES];
+static ChibiOS::CANIface can_iface[HAL_NUM_CAN_IFACES];
 #elif CONFIG_HAL_BOARD == HAL_BOARD_SITL
-HALSITL::CANIface* AP_Periph_FW::can_iface_periph[HAL_NUM_CAN_IFACES];
+static HALSITL::CANIface can_iface[HAL_NUM_CAN_IFACES];
 #endif
-
 /*
  * Variables used for dynamic node ID allocation.
  * RTFM at http://uavcan.org/Specification/6._Application_level_functions/#dynamic-node-id-allocation
@@ -486,7 +477,7 @@ static void handle_beep_command(CanardInstance* ins, CanardRxTransfer* transfer)
     if (!initialised) {
         initialised = true;
         hal.rcout->init();
-        hal.util->toneAlarm_init(AP_Notify::Notify_Buzz_Builtin);
+        hal.util->toneAlarm_init(AP_HAL::Util::ALARM_BUZZER);
     }
     fix_float16(req.frequency);
     fix_float16(req.duration);
@@ -989,12 +980,7 @@ static void processTx(void)
         bool sent_ok = false;
         const uint64_t deadline = AP_HAL::native_micros64() + 1000000;
         for (uint8_t i=0; i<HAL_NUM_CAN_IFACES; i++) {
-#if HAL_NUM_CAN_IFACES >= 2
-            if (periph.can_protocol_cached[i] != AP_CANManager::Driver_Type_UAVCAN) {
-                continue;
-            }
-#endif
-            sent_ok |= (AP::periph().can_iface_periph[i]->send(txmsg, deadline, 0) > 0);
+            sent_ok |= (can_iface[i].send(txmsg, deadline, 0) > 0);
         }
         if (sent_ok) {
             canardPopTxQueue(&canard);
@@ -1018,14 +1004,9 @@ static void processRx(void)
     while (true) {
         bool got_pkt = false;
         for (uint8_t i=0; i<HAL_NUM_CAN_IFACES; i++) {
-#if HAL_NUM_CAN_IFACES >= 2
-            if (periph.can_protocol_cached[i] != AP_CANManager::Driver_Type_UAVCAN) {
-                continue;
-            }
-#endif
             bool read_select = true;
             bool write_select = false;
-            AP::periph().can_iface_periph[i]->select(read_select, write_select, nullptr, 0);
+            can_iface[i].select(read_select, write_select, nullptr, 0);
             if (!read_select) {
                 continue;
             }
@@ -1034,7 +1015,7 @@ static void processRx(void)
             //palToggleLine(HAL_GPIO_PIN_LED);
             uint64_t timestamp;
             AP_HAL::CANIface::CanIOFlags flags;
-            AP::periph().can_iface_periph[i]->receive(rxmsg, timestamp, flags);
+            can_iface[i].receive(rxmsg, timestamp, flags);
             memcpy(rx_frame.data, rxmsg.data, 8);
             rx_frame.data_len = rxmsg.dlc;
             rx_frame.id = rxmsg.id;
@@ -1272,32 +1253,8 @@ void AP_Periph_FW::can_start()
     periph.g.flash_bootloader.set_and_save_ifchanged(0);
 #endif
 
-#if AP_PERIPH_ENFORCE_AT_LEAST_ONE_PORT_IS_UAVCAN_1MHz && HAL_NUM_CAN_IFACES >= 2
-    bool has_uavcan_at_1MHz = false;
-    for (uint8_t i=0; i<HAL_NUM_CAN_IFACES; i++) {
-        if (g.can_protocol[i] == AP_CANManager::Driver_Type_UAVCAN && g.can_baudrate[i] == 1000000) {
-            has_uavcan_at_1MHz = true;
-        }
-    }
-    if (!has_uavcan_at_1MHz) {
-        g.can_protocol[0].set_and_save(AP_CANManager::Driver_Type_UAVCAN);
-        g.can_baudrate[0].set_and_save(1000000);
-    }
-#endif // HAL_PERIPH_ENFORCE_AT_LEAST_ONE_PORT_IS_UAVCAN_1MHz
-
-    for (uint8_t i=0; i<HAL_NUM_CAN_IFACES; i++) {
-#if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-        can_iface_periph[i] = new ChibiOS::CANIface();
-#elif CONFIG_HAL_BOARD == HAL_BOARD_SITL
-        can_iface_periph[i] = new HALSITL::CANIface();
-#endif
-#if HAL_NUM_CAN_IFACES >= 2
-        can_protocol_cached[i] = g.can_protocol[i];
-        CANSensor::set_periph(i, can_protocol_cached[i], can_iface_periph[i]);
-#endif
-        if (can_iface_periph[i] != nullptr) {
-            can_iface_periph[i]->init(g.can_baudrate[i], AP_HAL::CANIface::NormalMode);
-        }
+    for (int8_t i=0; i<HAL_NUM_CAN_IFACES; i++) {
+        can_iface[i].init(1000000, AP_HAL::CANIface::NormalMode);
     }
 
     canardInit(&canard, (uint8_t *)canard_memory_pool, sizeof(canard_memory_pool),
@@ -1523,9 +1480,7 @@ void AP_Periph_FW::can_battery_update(void)
         }
         float temperature;
         if (battery.lib.get_temperature(temperature, i)) {
-            // Battery lib reports temperature in Celsius.
-            // Convert Celsius to Kelvin for tranmission on CAN.
-            pkt.temperature = temperature + C_TO_KELVIN;
+            pkt.temperature = temperature;
         }
 
         fix_float16(pkt.voltage);

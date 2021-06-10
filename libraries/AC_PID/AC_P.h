@@ -26,8 +26,6 @@ public:
         _kp = initial_p;
     }
 
-    CLASS_NO_COPY(AC_P);
-
     /// Iterate the P controller, return the new control value
     ///
     /// Positive error produces positive output.

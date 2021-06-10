@@ -19,8 +19,6 @@ public:
     // constructor
     AC_PI_2D(float initial_p, float initial_i, float initial_imax, float initial_filt_hz, float dt);
 
-    CLASS_NO_COPY(AC_PI_2D);
-
     // set time step in seconds
     void set_dt(float dt);
 

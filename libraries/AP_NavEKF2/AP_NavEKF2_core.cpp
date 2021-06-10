@@ -190,6 +190,10 @@ void NavEKF2_core::InitialiseVariables()
     inhibitWindStates = true;
     gndOffsetValid =  false;
     validOrigin = false;
+    takeoffExpectedSet_ms = 0;
+    expectGndEffectTakeoff = false;
+    touchdownExpectedSet_ms = 0;
+    expectGndEffectTouchdown = false;
     gpsSpdAccuracy = 0.0f;
     gpsPosAccuracy = 0.0f;
     gpsHgtAccuracy = 0.0f;
@@ -348,7 +352,7 @@ void NavEKF2_core::InitialiseVariablesMag()
 
     inhibitMagStates = true;
 
-    magSelectIndex = dal.compass().get_first_usable();
+    magSelectIndex = 0;
     lastMagOffsetsValid = false;
     magStateResetRequest = false;
     magStateInitComplete = false;
@@ -931,7 +935,7 @@ void NavEKF2_core::CovariancePrediction()
     for (uint8_t i= 0; i<=8;  i++) processNoise[i] = 0.0f;
     for (uint8_t i=9; i<=11; i++) processNoise[i] = dAngBiasSigma;
     for (uint8_t i=12; i<=14; i++) processNoise[i] = dAngScaleSigma;
-    if (dal.get_takeoff_expected()) {
+    if (expectGndEffectTakeoff) {
         processNoise[15] = 0.0f;
     } else {
         processNoise[15] = dVelBiasSigma;

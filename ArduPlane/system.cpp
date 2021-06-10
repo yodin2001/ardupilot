@@ -89,7 +89,7 @@ void Plane::init_ardupilot()
     AP::compass().init();
 
 // init EFI monitoring
-#if HAL_EFI_ENABLED
+#if EFI_ENABLED
     g2.efi.init();
 #endif
 

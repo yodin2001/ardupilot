@@ -143,6 +143,7 @@ def build_unit_tests(**kwargs):
     """Build tests."""
     for target in ['linux']:
         print("Running build.unit_tests for %s" % target)
+        print(*kwargs)
         try:
             util.build_tests(target, **kwargs)
         except Exception as e:
@@ -415,7 +416,6 @@ def run_step(step):
         "configure": not opts.no_configure,
         "math_check_indexes": opts.math_check_indexes,
         "extra_configure_args": opts.waf_configure_args,
-        "coverage": opts.coverage,
     }
 
     if opts.Werror:
@@ -878,10 +878,6 @@ if __name__ == "__main__":
                            default=False,
                            action='store_true',
                            help='make built binaries debug binaries')
-    group_build.add_option("--coverage",
-                           default=False,
-                           action='store_true',
-                           help='make built binaries coverage binaries')
     group_build.add_option("--enable-math-check-indexes",
                            default=False,
                            action="store_true",
@@ -1136,6 +1132,9 @@ if __name__ == "__main__":
 
     try:
         if not run_tests(steps_to_run):
+            if os.environ.get("COVERAGE", False):
+                # Don't report failure on coverage test
+                sys.exit(0)
             sys.exit(1)
     except KeyboardInterrupt:
         print("KeyboardInterrupt caught; closing pexpect connections")

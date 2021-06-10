@@ -182,7 +182,7 @@ public:
     uint32_t last_reading_ms(enum Rotation orientation) const;
 
     // get temperature reading in C.  returns true on success and populates temp argument
-    bool get_temp(enum Rotation orientation, float &temp) const;
+    bool get_temp(enum Rotation orientation, float &temp);
 
     /*
       set an externally estimated terrain height. Used to enable power

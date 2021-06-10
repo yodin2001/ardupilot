@@ -50,19 +50,11 @@ class VehicleInfo(object):
             },
             "hexa-cwx": {
                 "waf_target": "bin/arducopter",
-                "default_params_filename": [
-                    "default_params/copter.parm",
-                    "default_params/copter-hexa.parm",
-                    "default_params/copter-hexa-cwx.parm"
-                ],
+                "default_params_filename": "default_params/copter.parm",
             },
             "hexa-dji": {
                 "waf_target": "bin/arducopter",
-                "default_params_filename": [
-                    "default_params/copter.parm",
-                    "default_params/copter-hexa.parm",
-                    "default_params/copter-hexa-dji.parm"
-                ],
+                "default_params_filename": "default_params/copter.parm",
             },
              "octa-cwx": {
                 "waf_target": "bin/arducopter",
@@ -74,11 +66,7 @@ class VehicleInfo(object):
             },
             "octa-quad-cwx": {
                 "waf_target": "bin/arducopter",
-                "default_params_filename": [
-                    "default_params/copter.parm",
-                    "default_params/copter-octaquad.parm",
-                    "default_params/copter-octaquad-cwx.parm"
-                ],
+                "default_params_filename": "default_params/copter.parm",
             },
             "octa-quad": {
                 "waf_target": "bin/arducopter",
@@ -150,6 +138,9 @@ class VehicleInfo(object):
                 "default_params_filename": ["default_params/copter-heli.parm",
                                             "default_params/copter-heli-dual.parm"],
             },
+            "heli-compound": {
+                "waf_target": "bin/arducopter-heli",
+            },
             "singlecopter": {
                 "waf_target": "bin/arducopter",
                 "default_params_filename": "default_params/copter-single.parm",
@@ -174,25 +165,6 @@ class VehicleInfo(object):
                 "default_params_filename": ["default_params/copter.parm",
                                             "models/Callisto.param"],
             },
-        },
-    },
-    "Helicopter": {
-        "default_frame": "heli",
-        "frames": {
-            "heli": {
-                "waf_target": "bin/arducopter-heli",
-                "default_params_filename": "default_params/copter-heli.parm",
-            },
-            "heli-dual": {
-                "waf_target": "bin/arducopter-heli",
-                "default_params_filename": ["default_params/copter-heli.parm",
-                                            "default_params/copter-heli-dual.parm"],
-            },
-            # "heli-compound": {
-            #     "waf_target": "bin/arducopter-heli",
-            #     "default_params_filename": ["default_params/copter-heli.parm",
-            #                                 "default_params/copter-heli-compound.parm"],
-            # },
         },
     },
     "Blimp": {

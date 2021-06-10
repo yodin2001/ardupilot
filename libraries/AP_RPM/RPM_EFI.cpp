@@ -17,7 +17,7 @@
 
 #include "RPM_EFI.h"
 
-#if HAL_EFI_ENABLED
+#if EFI_ENABLED
 extern const AP_HAL::HAL& hal;
 
 /* 
@@ -41,4 +41,4 @@ void AP_RPM_EFI::update(void)
     state.last_reading_ms = AP_HAL::millis();
 }
 
-#endif // HAL_EFI_ENABLED
+#endif // EFI_ENABLED

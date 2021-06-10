@@ -1,5 +1,7 @@
 #include "EventSource.h"
 
+#if !defined(HAL_BUILD_AP_PERIPH) && !defined(HAL_BOOTLOADER_BUILD)
+
 using namespace ChibiOS;
 
 #if CH_CFG_USE_EVENTS == TRUE
@@ -31,3 +33,4 @@ void EventSource::signalI(uint32_t evt_mask)
     chSysUnlockFromISR();
 }
 #endif //#if CH_CFG_USE_EVENTS == TRUE
+#endif //#if !defined(HAL_BUILD_AP_PERIPH) && !defined(HAL_BOOTLOADER_BUILD)

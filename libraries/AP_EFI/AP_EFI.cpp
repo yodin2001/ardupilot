@@ -15,7 +15,7 @@
 
 #include "AP_EFI.h"
 
-#if HAL_EFI_ENABLED
+#if EFI_ENABLED
 
 #include "AP_EFI_Serial_MS.h"
 #include "AP_EFI_NWPMU.h"
@@ -241,5 +241,5 @@ AP_EFI *EFI()
 }
 }
 
-#endif // HAL_EFI_ENABLED
+#endif // EFI_ENABLED
 

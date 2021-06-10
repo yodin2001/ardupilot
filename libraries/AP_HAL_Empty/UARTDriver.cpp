@@ -1,6 +1,5 @@
 
 #include "UARTDriver.h"
-#include <AP_Common/ExpandingString.h>
 
 Empty::UARTDriver::UARTDriver() {}
 
@@ -28,9 +27,4 @@ size_t Empty::UARTDriver::write(const uint8_t *buffer, size_t size)
         n += write(*buffer++);
     }
     return n;
-}
-
-void Empty::UARTDriver::uart_info(ExpandingString &str)
-{
-    str.printf("EMPTY\n");
 }

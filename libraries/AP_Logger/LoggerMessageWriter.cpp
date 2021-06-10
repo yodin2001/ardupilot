@@ -24,11 +24,7 @@ void LoggerMessageWriter::reset()
 
 bool LoggerMessageWriter::out_of_time_for_writing_messages() const
 {
-#if HAL_SCHEDULER_ENABLED
     return AP::scheduler().time_available_usec() < MIN_LOOP_TIME_REMAINING_FOR_MESSAGE_WRITE_US;
-#else
-    return false;
-#endif
 }
 
 void LoggerMessageWriter_DFLogStart::reset()
@@ -38,12 +34,8 @@ void LoggerMessageWriter_DFLogStart::reset()
     _fmt_done = false;
     _params_done = false;
     _writesysinfo.reset();
-#if HAL_MISSION_ENABLED
     _writeentiremission.reset();
-#endif
-#if HAL_RALLY_ENABLED
     _writeallrallypoints.reset();
-#endif
 
     stage = Stage::FORMATS;
     next_format_to_send = 0;
@@ -57,11 +49,7 @@ bool LoggerMessageWriter_DFLogStart::out_of_time_for_writing_messages() const
 {
     if (stage == Stage::FORMATS) {
         // write out the FMT messages as fast as we can
-#if HAL_SCHEDULER_ENABLED
         return AP::scheduler().time_available_usec() == 0;
-#else
-        return false;
-#endif
     }
     return LoggerMessageWriter::out_of_time_for_writing_messages();
 }
@@ -134,22 +122,18 @@ void LoggerMessageWriter_DFLogStart::process()
                 return;
             }
         }
-#if HAL_MISSION_ENABLED
         if (!_writeentiremission.finished()) {
             _writeentiremission.process();
             if (!_writeentiremission.finished()) {
                 return;
             }
         }
-#endif
-#if HAL_RALLY_ENABLED
         if (!_writeallrallypoints.finished()) {
             _writeallrallypoints.process();
             if (!_writeallrallypoints.finished()) {
                 return;
             }
         }
-#endif
         stage = Stage::VEHICLE_MESSAGES;
         FALLTHROUGH;
 
@@ -173,7 +157,6 @@ void LoggerMessageWriter_DFLogStart::process()
     _finished = true;
 }
 
-#if HAL_MISSION_ENABLED
 bool LoggerMessageWriter_DFLogStart::writeentiremission()
 {
     if (stage != Stage::DONE) {
@@ -184,9 +167,7 @@ bool LoggerMessageWriter_DFLogStart::writeentiremission()
     _writeentiremission.reset();
     return true;
 }
-#endif
 
-#if HAL_RALLY_ENABLED
 bool LoggerMessageWriter_DFLogStart::writeallrallypoints()
 {
     if (stage != Stage::DONE) {
@@ -197,7 +178,6 @@ bool LoggerMessageWriter_DFLogStart::writeallrallypoints()
     _writeallrallypoints.reset();
     return true;
 }
-#endif
 
 void LoggerMessageWriter_WriteSysInfo::reset()
 {

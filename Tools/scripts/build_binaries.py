@@ -620,9 +620,6 @@ is bob we will attempt to checkout bob-AVR'''
                 "mRoPixracerPro",
                 "mRoPixracerPro-bdshot",
                 "mRoControlZeroOEMH7",
-                "mRoControlZeroClassic",
-                "mRoControlZeroH7",
-                "mRoControlZeroH7-bdshot",
                 "F35Lightning",
                 "speedybeef4",
                 "SuccexF4",
@@ -668,7 +665,6 @@ is bob we will attempt to checkout bob-AVR'''
                 "MatekH743-periph",
                 "HitecMosaic",
                 "FreeflyRTK",
-                "HolybroGPS",
                 ]
 
     def build_arducopter(self, tag):

@@ -2313,7 +2313,7 @@ for 3 new flight boards in this release. They are:
  - the Pixracer
 
 More information about the list of supported boards is available here:
-https://ardupilot.org/copter/docs/common-autopilots.html
+http://dev.ardupilot.org/wiki/supported-autopilot-controller-boards/
 
 Startup on a moving platform
 

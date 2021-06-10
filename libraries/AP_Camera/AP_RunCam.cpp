@@ -34,7 +34,7 @@ const AP_Param::GroupInfo AP_RunCam::var_info[] = {
     // @Param: TYPE
     // @DisplayName: RunCam device type
     // @Description: RunCam deviee type used to determine OSD menu structure and shutter options.
-    // @Values: 0:Disabled, 1:RunCam Split Micro/RunCam with UART, 2:RunCam Split, 3:RunCam Split4 4k, 4:RunCam Hybrid
+    // @Values: 0:Disabled, 1:RunCam Split Micro/RunCam with UART, 2:RunCam Split, 3:RunCam Split4 4k
     AP_GROUPINFO_FLAGS("TYPE", 1, AP_RunCam, _cam_type, int(DeviceType::Disabled), AP_PARAM_FLAG_ENABLE),
 
     // @Param: FEATURES
@@ -113,7 +113,6 @@ AP_RunCam::Menu AP_RunCam::_menus[RUNCAM_MAX_DEVICE_TYPES] = {
     { 6, { 5, 8, 3, 3, 7 }}, // SplitMicro
     { 0, { 0 }}, // Split
     { 6, { 4, 10, 3, 3, 7 }}, // Split4 4K
-    { 1, { 0 }}, // Hybrid, simple mode switch
 };
 
 AP_RunCam::AP_RunCam()
@@ -555,7 +554,7 @@ void AP_RunCam::handle_2_key_simulation_process(Event ev)
             simulate_camera_button(ControlOperation::RCDEVICE_PROTOCOL_SIMULATE_WIFI_BTN, _mode_delay_ms);
             _in_menu--;
             _state = State::EXITING_MENU;
-        } else if (_top_menu_pos >= 0 && get_sub_menu_length(_top_menu_pos) > 0) {
+        } else {
             simulate_camera_button(ControlOperation::RCDEVICE_PROTOCOL_SIMULATE_WIFI_BTN, _button_delay_ms);
             _in_menu = MIN(_in_menu + 1, RUNCAM_OSD_MENU_DEPTH);
         }
@@ -707,7 +706,7 @@ void AP_RunCam::handle_5_key_simulation_response(const Request& request)
 
 // command to start recording
 AP_RunCam::ControlOperation AP_RunCam::start_recording_command() const {
-    if (DeviceType(_cam_type.get()) == DeviceType::Split4k || DeviceType(_cam_type.get()) == DeviceType::Hybrid) {
+    if (DeviceType(_cam_type.get()) == DeviceType::Split4k) {
         return ControlOperation::RCDEVICE_PROTOCOL_SIMULATE_POWER_BTN;
     } else {
         return ControlOperation::RCDEVICE_PROTOCOL_CHANGE_START_RECORDING;
@@ -716,7 +715,7 @@ AP_RunCam::ControlOperation AP_RunCam::start_recording_command() const {
 
 // command to stop recording
 AP_RunCam::ControlOperation AP_RunCam::stop_recording_command() const {
-    if (DeviceType(_cam_type.get()) == DeviceType::Split4k || DeviceType(_cam_type.get()) == DeviceType::Hybrid) {
+    if (DeviceType(_cam_type.get()) == DeviceType::Split4k) {
         return ControlOperation::RCDEVICE_PROTOCOL_SIMULATE_POWER_BTN;
     } else {
         return ControlOperation::RCDEVICE_PROTOCOL_CHANGE_STOP_RECORDING;
