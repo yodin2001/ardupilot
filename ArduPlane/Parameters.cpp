@@ -175,7 +175,7 @@ const AP_Param::Info Plane::var_info[] = {
     // @DisplayName: Takeoff throttle slew rate
     // @Description: This parameter sets the slew rate for the throttle during auto takeoff. When this is zero the THR_SLEWRATE parameter is used during takeoff. For rolling takeoffs it can be a good idea to set a lower slewrate for takeoff to give a slower acceleration which can improve ground steering control. The value is a percentage throttle change per second, so a value of 20 means to advance the throttle over 5 seconds on takeoff. Values below 20 are not recommended as they may cause the plane to try to climb out with too little throttle. A value of -1 means no limit on slew rate in takeoff.
     // @Units: %/s
-    // @Range: -1 127
+    // @Range: -1 1000
     // @Increment: 1
     // @User: Standard
     GSCALAR(takeoff_throttle_slewrate, "TKOFF_THR_SLEW",  0),
@@ -364,10 +364,10 @@ const AP_Param::Info Plane::var_info[] = {
     // @DisplayName: Throttle slew rate
     // @Description: Maximum change in throttle percentage per second. Lower limit  based on 1 microsend of servo increase per loop. Divide SCHED_LOOP_RATE by approximately 10 to determine minimum achievable value.
     // @Units: %/s
-    // @Range: 0 127
+    // @Range: 0 1000
     // @Increment: 1
     // @User: Standard
-    ASCALAR(throttle_slewrate,      "THR_SLEWRATE",   100),
+    ASCALAR(throttle_slewrate,      "THR_SLEWRATE",   200),
 
     // @Param: FLAP_SLEWRATE
     // @DisplayName: Flap slew rate
@@ -1309,7 +1309,7 @@ static const AP_Param::ConversionInfo conversion_table[] = {
     { Parameters::k_param_land_pre_flare_sec, 0,      AP_PARAM_FLOAT, "LAND_PF_SEC" },
     { Parameters::k_param_land_pre_flare_alt, 0,      AP_PARAM_FLOAT, "LAND_PF_ALT" },
     { Parameters::k_param_land_pre_flare_airspeed, 0, AP_PARAM_FLOAT, "LAND_PF_ARSPD" },
-    { Parameters::k_param_land_throttle_slewrate, 0,  AP_PARAM_INT8,  "LAND_THR_SLEW" },
+    { Parameters::k_param_land_throttle_slewrate, 0,  AP_PARAM_INT16,  "LAND_THR_SLEW" },
     { Parameters::k_param_land_disarm_delay,  0,      AP_PARAM_INT8,  "LAND_DISARMDELAY" },
     { Parameters::k_param_land_then_servos_neutral,0, AP_PARAM_INT8,  "LAND_THEN_NEUTRAL" },
     { Parameters::k_param_land_abort_throttle_enable,0,AP_PARAM_INT8, "LAND_ABORT_THR" },
