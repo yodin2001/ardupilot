@@ -101,7 +101,7 @@ const AP_Param::GroupInfo AP_Landing::var_info[] = {
     // @DisplayName: Landing throttle slew rate
     // @Description: This parameter sets the slew rate for the throttle during auto landing. When this is zero the THR_SLEWRATE parameter is used during landing. The value is a percentage throttle change per second, so a value of 20 means to advance the throttle over 5 seconds on landing. Values below 50 are not recommended as it may cause a stall when airspeed is low and you can not throttle up fast enough.
     // @Units: %
-    // @Range: 0 127
+    // @Range: 0 1000
     // @Increment: 1
     // @User: Standard
     AP_GROUPINFO("THR_SLEW", 9, AP_Landing, throttle_slewrate, 0),
