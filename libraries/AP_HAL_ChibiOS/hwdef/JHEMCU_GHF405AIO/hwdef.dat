@@ -94,10 +94,23 @@ PA5 SPI1_SCK SPI1
 PA6 SPI1_MISO SPI1
 PA7 SPI1_MOSI SPI1
 
-# MPU6000 on SPI
+# spi2 for SD CARD
+PB13 SPI2_SCK SPI2
+PB14 SPI2_MISO SPI2
+PB15 SPI2_MOSI SPI2
+PB12 SDCARD_CS CS
+
+# MPU6000 on SPI1
 SPIDEV mpu6000 SPI1 DEVID1 MPU6000_CS MODE3  1*MHZ  4*MHZ
 IMU Invensense SPI:mpu6000 ROTATION_YAW_90
 
+# MicroSD card on SPI2
+SPIDEV sdcard    SPI2 DEVID1 SDCARD_CS  MODE0 400*KHZ 25*MHZ
+
+# filesystem setup on sdcard
+define HAL_OS_FATFS_IO 1
+define HAL_BOARD_LOG_DIRECTORY "/APM/LOGS"
+define HAL_BOARD_TERRAIN_DIRECTORY "/APM/TERRAIN"
 
 #################################################
 ###                 GPIO                      ###
