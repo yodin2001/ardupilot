@@ -83,9 +83,9 @@ const AP_Scheduler::Task Plane::scheduler_tasks[] = {
 #endif // CAMERA == ENABLED
     SCHED_TASK_CLASS(AP_Scheduler, &plane.scheduler, update_logging,         0.2,    100),
     SCHED_TASK(compass_save,          0.1,    200),
-    SCHED_TASK(Log_Write_Fast,         25,    300),
-    SCHED_TASK(update_logging1,        25,    300),
-    SCHED_TASK(update_logging2,        25,    300),
+    SCHED_TASK(Log_Write_Fast,         10,    300),
+    SCHED_TASK(update_logging1,         5,    300),
+    SCHED_TASK(update_logging2,         5,    300),
 #if HAL_SOARING_ENABLED
     SCHED_TASK(update_soaring,         50,    400),
 #endif
@@ -95,7 +95,7 @@ const AP_Scheduler::Task Plane::scheduler_tasks[] = {
 #endif // AP_TERRAIN_AVAILABLE
     SCHED_TASK(update_is_flying_5Hz,    5,    100),
 #if LOGGING_ENABLED == ENABLED
-    SCHED_TASK_CLASS(AP_Logger, &plane.logger, periodic_tasks, 50, 400),
+    SCHED_TASK_CLASS(AP_Logger, &plane.logger, periodic_tasks, 10, 400),
 #endif
     SCHED_TASK_CLASS(AP_InertialSensor, &plane.ins, periodic, 50, 50),
 #if HAL_ADSB_ENABLED    
