@@ -342,8 +342,6 @@ public:
 
 protected:
 
-    virtual bool in_hil_mode() const { return false; }
-
     bool mavlink_coordinate_frame_to_location_alt_frame(MAV_FRAME coordinate_frame,
                                                         Location::AltFrame &frame);
 
@@ -855,6 +853,12 @@ private:
     uint32_t last_mavlink_stats_logged;
 
     uint8_t last_battery_status_idx;
+
+    // send_sensor_offsets decimates its send rate using this counter:
+    // FIXME: decimate this instead when initialising the message
+    // intervals from the stream rates.  Consider the implications of
+    // doing so vis-a-vis the fact it will consume a bucket.
+    uint8_t send_sensor_offsets_counter;
 
     // if we've ever sent a DISTANCE_SENSOR message out of an
     // orientation we continue to send it out, even if it is not

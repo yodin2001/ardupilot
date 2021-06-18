@@ -62,6 +62,15 @@ void AP_Filesystem_Backend::unload_file(FileData *fd)
     }
 }
 
+// return true if file operations are allowed
+bool AP_Filesystem_Backend::file_op_allowed(void) const
+{
+    if (!hal.util->get_soft_armed() || !hal.scheduler->in_main_thread()) {
+        return true;
+    }
+    return false;
+}
+
 /*
   destructor for FileData
  */

@@ -195,8 +195,8 @@ const AP_Param::GroupInfo QuadPlane::var_info[] = {
 
     // @Param: RTL_MODE
     // @DisplayName: VTOL RTL mode
-    // @Description: If this is set to 1 then an RTL will change to QRTL when within RTL_RADIUS meters of the RTL destination, VTOL approach: vehicle will RTL at RTL alt and circle with a radius of Q_FW_LND_APR_RAD down to Q_RLT_ALT and then transission into the wind and QRTL, see 'AUTO VTOL Landing'
-    // @Values: 0:Disabled,1:Enabled,2:VTOL approach
+    // @Description: If this is set to 1 then an RTL will change to QRTL when within RTL_RADIUS meters of the RTL destination, VTOL approach: vehicle will RTL at RTL alt and circle with a radius of Q_FW_LND_APR_RAD down to Q_RLT_ALT and then transission into the wind and QRTL, see 'AUTO VTOL Landing', QRTL Always: do a QRTL instead of RTL
+    // @Values: 0:Disabled,1:Enabled,2:VTOL approach,3:QRTL Always
     // @User: Standard
     AP_GROUPINFO("RTL_MODE", 36, QuadPlane, rtl_mode, 0),
 
@@ -2544,6 +2544,45 @@ void QuadPlane::run_xy_controller(void)
 }
 
 /*
+  initialise QPOS_APPROACH
+ */
+void QuadPlane::poscontrol_init_approach(void)
+{
+    if ((options & OPTION_DISABLE_APPROACH) != 0) {
+        // go straight to QPOS_POSITION1
+        poscontrol.set_state(QPOS_POSITION1);
+    } else if (poscontrol.get_state() != QPOS_APPROACH) {
+        const float dist = plane.current_loc.get_distance(plane.next_WP_loc);
+        gcs().send_text(MAV_SEVERITY_INFO,"VTOL approach d=%.1f", dist);
+        poscontrol.set_state(QPOS_APPROACH);
+        poscontrol.thrust_loss_start_ms = 0;
+    }
+}
+
+/*
+  change position control state
+ */
+void QuadPlane::PosControlState::set_state(enum position_control_state s)
+{
+    if (state != s) {
+        auto &qp = plane.quadplane;
+        pilot_correction_done = false;
+        // handle resets needed for when the state changes
+        if (s == QPOS_POSITION1) {
+            reached_wp_speed = false;
+            qp.attitude_control->reset_yaw_target_and_rate();
+        } else if (s == QPOS_POSITION2) {
+            // POSITION2 changes target speed, so we need to change it
+            // back to normal
+            qp.pos_control->set_max_speed_accel_xy(qp.wp_nav->get_default_speed_xy(),
+                                                   qp.wp_nav->get_wp_acceleration());
+        }
+    }
+    state = s;
+    last_state_change_ms = AP_HAL::millis();
+}
+
+/*
   main landing controller. Used for landing and RTL.
  */
 void QuadPlane::vtol_position_controller(void)
@@ -2557,29 +2596,192 @@ void QuadPlane::vtol_position_controller(void)
     check_attitude_relax();
 
     // horizontal position control
-    switch (poscontrol.state) {
+    switch (poscontrol.get_state()) {
+
+    case QPOS_NONE:
+        poscontrol.set_state(QPOS_POSITION1);
+        INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control);
+        break;
+
+    case QPOS_APPROACH:
+        if (in_vtol_mode()) {
+            // this means we're not running update_transition() and
+            // thus not doing qassist checking, force POSITION1 mode
+            // now. We don't expect this to trigger, it is a failsafe
+            // for a logic error
+            gcs().send_text(MAV_SEVERITY_INFO,"VTOL position1 nvtol");
+            poscontrol.set_state(QPOS_POSITION1);
+            INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control);
+        }
+        FALLTHROUGH;
+
+    case QPOS_AIRBRAKE: {
+        float aspeed;
+        const Vector2f closing_vel = landing_closing_velocity();
+        const Vector2f desired_closing_vel = landing_desired_closing_velocity();
+        const float groundspeed = plane.ahrs.groundspeed();
+        const float distance = plane.auto_state.wp_distance;
+        const float closing_speed = closing_vel.length();
+        const float desired_closing_speed = desired_closing_vel.length();
+        if (!plane.ahrs.airspeed_estimate(aspeed)) {
+            aspeed = groundspeed;
+        }
+
+        // speed for crossover to POSITION1 controller
+        const float aspeed_threshold = MAX(plane.aparm.airspeed_min-2, assist_speed);
+
+        // run fixed wing navigation
+        plane.nav_controller->update_waypoint(plane.current_loc, loc);
+
+        // use TECS for throttle
+        SRV_Channels::set_output_scaled(SRV_Channel::k_throttle, plane.SpdHgt_Controller->get_throttle_demand());
+
+        // use TECS for pitch
+        int32_t commanded_pitch = plane.SpdHgt_Controller->get_pitch_demand();
+        plane.nav_pitch_cd = constrain_int32(commanded_pitch, plane.pitch_limit_min_cd, plane.aparm.pitch_limit_max_cd.get());
+        if (poscontrol.get_state() == QPOS_AIRBRAKE) {
+            // don't allow down pitch in airbrake
+            plane.nav_pitch_cd = MAX(plane.nav_pitch_cd, 0);
+        }
+
+        // use nav controller roll
+        plane.calc_nav_roll();
+
+        const float stop_distance = stopping_distance();
+
+        /*
+          see if we should start airbraking stage. For non-tailsitters
+          we can use the VTOL motors as airbrakes by firing them up
+          before we transition. This gives a smoother transition and
+          gives us a nice lot of deceleration
+         */
+        if (poscontrol.get_state() == QPOS_APPROACH && distance < stop_distance) {
+            if (is_tailsitter() || motors->get_desired_spool_state() == AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED) {
+                // tailsitters don't use airbrake stage for landing
+                gcs().send_text(MAV_SEVERITY_INFO,"VTOL position1 v=%.1f d=%.0f sd=%.0f h=%.1f",
+                                groundspeed,
+                                plane.auto_state.wp_distance,
+                                stop_distance,
+                                plane.relative_ground_altitude(plane.g.rangefinder_landing));
+                poscontrol.set_state(QPOS_POSITION1);
+            } else {
+                gcs().send_text(MAV_SEVERITY_INFO,"VTOL airbrake v=%.1f d=%.0f sd=%.0f h=%.1f",
+                                groundspeed,
+                                distance,
+                                stop_distance,
+                                plane.relative_ground_altitude(plane.g.rangefinder_landing));
+                poscontrol.set_state(QPOS_AIRBRAKE);
+            }
+        }
+
+        /*
+          we must switch to POSITION1 if our airspeed drops below the
+          assist speed. We additionally switch to POSITION1 if we are
+          too far above our desired velocity profile, or our attitude
+          has deviated too much
+         */
+        const int32_t attitude_error_threshold_cd = 1000;
+
+        // use at least 1s of airbrake time to ensure motors have a chance to
+        // properly spin up
+        const uint32_t min_airbrake_ms = 1000;
+        if (poscontrol.get_state() == QPOS_AIRBRAKE &&
+            poscontrol.time_since_state_start_ms() > min_airbrake_ms &&
+            (aspeed < aspeed_threshold ||
+             closing_speed > MAX(desired_closing_speed*1.2, desired_closing_speed+2) ||
+             labs(plane.ahrs.roll_sensor - plane.nav_roll_cd) > attitude_error_threshold_cd ||
+             labs(plane.ahrs.pitch_sensor - plane.nav_pitch_cd) > attitude_error_threshold_cd)) {
+            gcs().send_text(MAV_SEVERITY_INFO,"VTOL position1 v=%.1f d=%.1f h=%.1f dc=%.1f",
+                            (double)groundspeed,
+                            (double)plane.auto_state.wp_distance,
+                            plane.relative_ground_altitude(plane.g.rangefinder_landing),
+                            desired_closing_speed);
+            poscontrol.set_state(QPOS_POSITION1);
+
+            // switch to vfwd for throttle control
+            vel_forward.integrator = SRV_Channels::get_output_scaled(SRV_Channel::k_throttle);
+            vel_forward.last_ms = now_ms;
+        }
+
+        if (tilt.tilt_mask == 0 && !is_tailsitter()) {
+            /*
+              cope with fwd motor thrust loss during approach. We detect
+              this by looking for the fwd throttle saturating. This only
+              applies to separate lift-thrust vehicles
+            */
+            bool throttle_saturated = SRV_Channels::get_output_scaled(SRV_Channel::k_throttle) >= plane.aparm.throttle_max;
+            if (throttle_saturated &&
+                motors->get_desired_spool_state() < AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED &&
+                plane.auto_state.sink_rate > 0.2 && aspeed < aspeed_threshold+4) {
+                if (poscontrol.thrust_loss_start_ms == 0) {
+                    poscontrol.thrust_loss_start_ms = now_ms;
+                }
+                if (now_ms - poscontrol.thrust_loss_start_ms > 5000) {
+                    gcs().send_text(MAV_SEVERITY_INFO,"VTOL pos1 thrust loss as=%.1f at=%.1f",
+                                    aspeed, aspeed_threshold);
+                    poscontrol.set_state(QPOS_POSITION1);
+                }
+            } else {
+                poscontrol.thrust_loss_start_ms = 0;
+            }
+
+            // handle loss of forward thrust in approach based on low airspeed detection
+            if (poscontrol.get_state() == QPOS_APPROACH && aspeed < aspeed_threshold &&
+                motors->get_desired_spool_state() < AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED) {
+                gcs().send_text(MAV_SEVERITY_INFO,"VTOL pos1 low speed as=%.1f at=%.1f",
+                                aspeed, aspeed_threshold);
+                poscontrol.set_state(QPOS_POSITION1);
+            }
+        }
+
+        
+        if (poscontrol.get_state() == QPOS_APPROACH) {
+            poscontrol_init_approach();
+        }
+        break;
+    }
 
     case QPOS_POSITION1: {
         setup_target_position();
 
+        if (is_tailsitter()) {
+            if (in_tailsitter_vtol_transition()) {
+                break;
+            }
+            poscontrol.set_state(QPOS_POSITION2);
+            poscontrol.pilot_correction_done = false;
+            gcs().send_text(MAV_SEVERITY_INFO,"VTOL position2 started v=%.1f d=%.1f",
+                                    (double)ahrs.groundspeed(), (double)plane.auto_state.wp_distance);
+            break;
+        }
+
+
         const Vector2f diff_wp = plane.current_loc.get_distance_NE(loc);
         const float distance = diff_wp.length();
-        Vector2f groundspeed = ahrs.groundspeed_vector();
-        float speed_towards_target = distance>1?(diff_wp.normalized() * groundspeed):0;
-        if (poscontrol.speed_scale <= 0) {
-            // initialise scaling so we start off targeting our
-            // current linear speed towards the target. If this is
-            // less than the wpnav speed then the wpnav speed is used
-            // land_speed_scale is then used to linearly change
-            // velocity as we approach the waypoint, aiming for zero
-            // speed at the waypoint
-            // setup land_speed_scale so at current distance we
-            // maintain speed towards target, and slow down as we
-            // approach
 
-            // max_speed will control how fast we will fly. It will always decrease
-            poscontrol.max_speed = MAX(speed_towards_target, wp_nav->get_default_speed_xy() * 0.01);
-            poscontrol.speed_scale = poscontrol.max_speed / MAX(distance, 1);
+        // calculate speed we should be at to reach the position2
+        // target speed at the position2 distance threshold, assuming
+        // Q_TRANS_DECEL is correct
+        const float stopping_speed = safe_sqrt(MAX(0, distance-position2_dist_threshold) * 2 * transition_decel) + position2_target_speed;
+
+        float target_speed = stopping_speed;
+
+        // maximum configured VTOL speed
+        const float wp_speed = pos_control->get_max_speed_xy_cms() * 0.01;
+        const float current_speed_sq = plane.ahrs.groundspeed_vector().length_squared();
+        const float scaled_wp_speed = get_scaled_wp_speed(degrees(diff_wp.angle()));
+
+        if (poscontrol.reached_wp_speed ||
+            current_speed_sq < sq(wp_speed) ||
+            wp_speed > 1.35*scaled_wp_speed) {
+            // once we get below the Q_WP_SPEED then we don't want to
+            // speed up again. At that point we should fly within the
+            // limits of the configured VTOL controller we also apply
+            // this limit when we are more than 45 degrees off the
+            // target in yaw, which is when we start to become
+            // unstable
+            target_speed = MIN(target_speed, scaled_wp_speed);
+            poscontrol.reached_wp_speed = true;
         }
 
         // run fixed wing navigation
@@ -2643,7 +2845,7 @@ void QuadPlane::vtol_position_controller(void)
             // stop integrator buildup
             pos_control->set_externally_limited_xy();
         }
-        
+
         // call attitude controller
         attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(plane.nav_roll_cd,
                                                                              plane.nav_pitch_cd,
@@ -2677,6 +2879,16 @@ void QuadPlane::vtol_position_controller(void)
         plane.nav_controller->update_waypoint(plane.prev_WP_loc, loc);
 
         update_land_positioning();
+
+        /*
+          apply the same asymmetric speed limits from POSITION1, so we
+          don't suddenly speed up when we change to POSITION2 and
+          LAND_DESCEND
+         */
+        const Vector2f diff_wp = plane.current_loc.get_distance_NE(loc);
+        const float scaled_wp_speed = get_scaled_wp_speed(degrees(diff_wp.angle()));
+
+        pos_control->set_max_speed_accel_xy(scaled_wp_speed*100, wp_nav->get_wp_acceleration());
 
         run_xy_controller();
 
@@ -2723,6 +2935,11 @@ void QuadPlane::vtol_position_controller(void)
     // now height control
     switch (poscontrol.state) {
     case QPOS_POSITION1:
+        if (in_tailsitter_vtol_transition()) {
+            pos_control->relax_z_controller(0);
+            break;
+        }
+        FALLTHROUGH;
     case QPOS_POSITION2: {
         bool vtol_loiter_auto = false;
         if (plane.control_mode == &plane.mode_auto) {
@@ -2789,6 +3006,26 @@ void QuadPlane::vtol_position_controller(void)
     run_z_controller();
 }
 
+
+/*
+  we want to limit WP speed to a lower speed when more than 20 degrees
+  off pointing at the destination. quadplanes are often
+  unstable when flying sideways or backwards
+*/
+float QuadPlane::get_scaled_wp_speed(float target_bearing_deg) const
+{
+    const float yaw_difference = fabsf(wrap_180(degrees(plane.ahrs.yaw) - target_bearing_deg));
+    const float wp_speed = wp_nav->get_default_speed_xy() * 0.01;
+    if (yaw_difference > 20) {
+        // this gives a factor of 2x reduction in max speed when
+        // off by 90 degrees, and 3x when off by 180 degrees
+        const float speed_reduction = linear_interpolate(1, 3,
+                                                         yaw_difference,
+                                                         20, 160);
+        return wp_speed / speed_reduction;
+    }
+    return wp_speed;
+}
 
 /*
   setup the target position based on plane.next_WP_loc
@@ -2946,6 +3183,15 @@ void QuadPlane::init_qrtl(void)
     poscontrol.speed_scale = 0;
     pos_control->set_accel_desired_xy_cmss(Vector2f());
     pos_control->init_xy_controller();
+    poscontrol_init_approach();
+    float dist = plane.next_WP_loc.get_distance(plane.current_loc);
+    const float radius = MAX(fabsf(plane.aparm.loiter_radius), fabsf(plane.g.rtl_radius));
+    if (dist < 1.5*radius &&
+        motors->get_desired_spool_state() == AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED) {
+        // we're close to destination and already running VTOL motors, don't transition
+        gcs().send_text(MAV_SEVERITY_INFO,"VTOL position1 d=%.1f r=%.1f", dist, radius);
+        poscontrol.set_state(QPOS_POSITION1);
+    }
     int32_t from_alt;
     int32_t to_alt;
     if (plane.current_loc.get_alt_cm(Location::AltFrame::ABSOLUTE,from_alt) && plane.next_WP_loc.get_alt_cm(Location::AltFrame::ABSOLUTE,to_alt)) {
@@ -3199,27 +3445,39 @@ bool QuadPlane::verify_vtol_land(void)
     if (!available()) {
         return true;
     }
-    if (poscontrol.state == QPOS_POSITION2 &&
-        plane.auto_state.wp_distance < 2 &&
-        plane.ahrs.groundspeed() < 3) {
-        poscontrol.state = QPOS_LAND_DESCEND;
-        poscontrol.pilot_correction_done = false;
+
+    if (poscontrol.get_state() == QPOS_POSITION2) {
+        // see if we should move onto the descend stage of landing
+        const float descend_dist_threshold = 2.0;
+        const float descend_speed_threshold = 3.0;
+        bool reached_position = false;
+        if (poscontrol.pilot_correction_done) {
+            reached_position = !poscontrol.pilot_correction_active;
+        } else {
+            const float dist = (inertial_nav.get_position() - poscontrol.target_cm).xy().length() * 0.01;
+            reached_position = dist < descend_dist_threshold;
+        }
+        if (reached_position &&
+            plane.ahrs.groundspeed() < descend_speed_threshold) {
+            poscontrol.set_state(QPOS_LAND_DESCEND);
+            poscontrol.pilot_correction_done = false;
 #if AC_FENCE == ENABLED
-        plane.fence.auto_disable_fence_for_landing();
+            plane.fence.auto_disable_fence_for_landing();
 #endif
 #if LANDING_GEAR_ENABLED == ENABLED
-        plane.g2.landing_gear.deploy_for_landing();
+            plane.g2.landing_gear.deploy_for_landing();
 #endif
-        last_land_final_agl = plane.relative_ground_altitude(plane.g.rangefinder_landing);
-        gcs().send_text(MAV_SEVERITY_INFO,"Land descend started");
-        if (plane.control_mode == &plane.mode_auto) {
-            // set height to mission height, so we can use the mission
-            // WP height for triggering land final if no rangefinder
-            // available
-            plane.set_next_WP(plane.mission.get_current_nav_cmd().content.location);
-        } else {
-            plane.set_next_WP(plane.next_WP_loc);
-            plane.next_WP_loc.alt = ahrs.get_home().alt;
+            last_land_final_agl = plane.relative_ground_altitude(plane.g.rangefinder_landing);
+            gcs().send_text(MAV_SEVERITY_INFO,"Land descend started");
+            if (plane.control_mode == &plane.mode_auto) {
+                // set height to mission height, so we can use the mission
+                // WP height for triggering land final if no rangefinder
+                // available
+                plane.set_next_WP(plane.mission.get_current_nav_cmd().content.location);
+            } else {
+                plane.set_next_WP(plane.next_WP_loc);
+                plane.next_WP_loc.alt = ahrs.get_home().alt;
+            }
         }
     }
 

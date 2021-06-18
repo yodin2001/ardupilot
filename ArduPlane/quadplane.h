@@ -362,6 +362,7 @@ private:
         NONE,
         SWITCH_QRTL,
         VTOL_APPROACH_QRTL,
+        QRTL_ALWAYS,
     };
 
     // control if a VTOL GUIDED will be used
@@ -475,6 +476,12 @@ private:
         bool slow_descent:1;
         bool pilot_correction_active;
         bool pilot_correction_done;
+        uint32_t thrust_loss_start_ms;
+        uint32_t last_log_ms;
+        bool reached_wp_speed;
+    private:
+        uint32_t last_state_change_ms;
+        enum position_control_state state;
     } poscontrol;
 
     struct {
@@ -674,6 +681,42 @@ private:
 
     // Q assist state, can be enabled, disabled or force. Default to enabled
     Q_ASSIST_STATE_ENUM q_assist_state = Q_ASSIST_STATE_ENUM::Q_ASSIST_ENABLED;
+
+    /*
+      return true if we should use the fixed wing attitude control loop
+     */
+    bool use_fw_attitude_controllers(void) const;
+
+    /*
+      get the airspeed for landing approach
+     */
+    float get_land_airspeed(void);
+
+    /*
+      setup for landing approach
+     */
+    void poscontrol_init_approach(void);
+
+    /*
+      calculate our closing velocity vector on the landing
+      point. Takes account of the landing point having a velocity
+     */
+    Vector2f landing_closing_velocity();
+
+    /*
+      calculate our desired closing velocity vector on the landing point.
+    */
+    Vector2f landing_desired_closing_velocity();
+
+    /*
+      change spool state, providing easy hook for catching changes in debug
+     */
+    void set_desired_spool_state(AP_Motors::DesiredSpoolState state);
+
+    /*
+      get a scaled Q_WP_SPEED based on direction of movement
+     */
+    float get_scaled_wp_speed(float target_bearing_deg) const;
 
 public:
     void motor_test_output();
