@@ -230,11 +230,10 @@ void AP_VideoTX::update(void)
 #endif
     // manipulate pitmode if pitmode-on-disarm or power-on-arm is set
     if (has_option(VideoOptions::VTX_PITMODE_ON_DISARM) || has_option(VideoOptions::VTX_PITMODE_UNTIL_ARM)) {
-        if (hal.util->get_soft_armed() && has_option(VideoOptions::VTX_PITMODE)) {
-            _options &= ~uint8_t(VideoOptions::VTX_PITMODE);
-        } else if (!hal.util->get_soft_armed() && !has_option(VideoOptions::VTX_PITMODE)
-            && has_option(VideoOptions::VTX_PITMODE_ON_DISARM)) {
-            _options |= uint8_t(VideoOptions::VTX_PITMODE);
+        if (hal.util->get_soft_armed() ) {
+            _power_mw.set(_max_power_mw);
+        } else if (!hal.util->get_soft_armed() && has_option(VideoOptions::VTX_PITMODE_ON_DISARM)) {
+            _power_mw.set_and_save_ifchanged(25);
         }
     }
 }
