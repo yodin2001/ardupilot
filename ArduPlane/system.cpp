@@ -393,7 +393,7 @@ void Plane::startup_INS_ground(void)
 
     // read Baro pressure at ground
     //-----------------------------
-    barometer.set_log_baro_bit(MASK_LOG_IMU);
+    barometer.set_log_baro_bit(MASK_LOG_COMPASS);
     barometer.calibrate();
 
     if (airspeed.enabled()) {
