@@ -366,27 +366,6 @@ void NavEKF3_core::Log_Write(uint64_t time_us)
     // note that several of these functions exit-early if they're not
     // attempting to log the primary core.
     Log_Write_XKF1(time_us);
-    Log_Write_XKF2(time_us);
-    Log_Write_XKF3(time_us);
-    Log_Write_XKF4(time_us);
-    Log_Write_XKF5(time_us);
-
-    Log_Write_XKFS(time_us);
-    Log_Write_Quaternion(time_us);
-    Log_Write_GSF(time_us);
-
-    // write range beacon fusion debug packet if the range value is non-zero
-    Log_Write_Beacon(time_us);
-
-#if EK3_FEATURE_BODY_ODOM
-    // write debug data for body frame odometry fusion
-    Log_Write_BodyOdom(time_us);
-#endif
-
-    // log state variances every 0.49s
-    Log_Write_State_Variances(time_us);
-
-    Log_Write_Timing(time_us);
 }
 
 void NavEKF3_core::Log_Write_Timing(uint64_t time_us)

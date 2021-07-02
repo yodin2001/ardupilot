@@ -208,9 +208,6 @@ void Plane::update_logging1(void)
 
     if (should_log(MASK_LOG_ATTITUDE_MED) && !should_log(MASK_LOG_IMU))
         AP::ins().Write_IMU();
-
-    if (should_log(MASK_LOG_ATTITUDE_MED))
-        ahrs.Write_AOA_SSA();
 }
 
 /*
@@ -220,11 +217,6 @@ void Plane::update_logging2(void)
 {
     if (should_log(MASK_LOG_CTUN)) {
         Log_Write_Control_Tuning();
-#if HAL_GYROFFT_ENABLED
-        gyro_fft.write_log_messages();
-#else
-        write_notch_log_messages();
-#endif
     }
     
     if (should_log(MASK_LOG_NTUN)) {

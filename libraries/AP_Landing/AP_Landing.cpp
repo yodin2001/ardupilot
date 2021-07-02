@@ -594,9 +594,6 @@ bool AP_Landing::is_complete(void) const
 void AP_Landing::Log(void) const
 {
     switch (type) {
-    case TYPE_STANDARD_GLIDE_SLOPE:
-        type_slope_log();
-        break;
     case TYPE_DEEPSTALL:
         deepstall.Log();
         break;

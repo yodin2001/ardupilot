@@ -295,9 +295,6 @@ void AP_BattMonitor::read()
 {
 #ifndef HAL_BUILD_AP_PERIPH
     AP_Logger *logger = AP_Logger::get_singleton();
-    if (logger != nullptr && logger->should_log(_log_battery_bit)) {
-        logger->Write_Power();
-    }
 #endif
 
     for (uint8_t i=0; i<_num_instances; i++) {
