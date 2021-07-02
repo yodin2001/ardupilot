@@ -2601,6 +2601,9 @@ void QuadPlane::PosControlState::set_state(enum position_control_state s)
             // back to normal
             qp.pos_control->set_max_speed_accel_xy(qp.wp_nav->get_default_speed_xy(),
                                                    qp.wp_nav->get_wp_acceleration());
+        } else if (s == QPOS_AIRBRAKE) {
+            // start with zero integrator on vertical throttle
+            qp.pos_control->get_accel_z_pid().set_integrator(0);
         }
     }
     state = s;
@@ -2680,6 +2683,10 @@ void QuadPlane::vtol_position_controller(void)
         plane.calc_nav_roll();
 
         const float stop_distance = stopping_distance();
+
+        if (poscontrol.get_state() == QPOS_AIRBRAKE) {
+            hold_hover(0);
+        }
 
         /*
           see if we should start airbraking stage. For non-tailsitters
@@ -2775,6 +2782,18 @@ void QuadPlane::vtol_position_controller(void)
 
     case QPOS_POSITION1: {
         setup_target_position();
+
+        if (is_tailsitter()) {
+            if (in_tailsitter_vtol_transition()) {
+                break;
+            }
+            poscontrol.set_state(QPOS_POSITION2);
+            poscontrol.pilot_correction_done = false;
+            gcs().send_text(MAV_SEVERITY_INFO,"VTOL position2 started v=%.1f d=%.1f",
+                                    (double)ahrs.groundspeed(), (double)plane.auto_state.wp_distance);
+            break;
+        }
+
 
         const Vector2f diff_wp = plane.current_loc.get_distance_NE(loc);
         const float distance = diff_wp.length();
@@ -2949,6 +2968,11 @@ void QuadPlane::vtol_position_controller(void)
         }
         break;
     case QPOS_POSITION1:
+        if (in_tailsitter_vtol_transition()) {
+            pos_control->relax_z_controller(0);
+            break;
+        }
+        FALLTHROUGH;
     case QPOS_POSITION2: {
         bool vtol_loiter_auto = false;
         if (plane.control_mode == &plane.mode_auto) {
@@ -4061,7 +4085,8 @@ bool QuadPlane::use_fw_attitude_controllers(void) const
         motors->armed() &&
         motors->get_desired_spool_state() >= AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED &&
         in_vtol_mode() &&
-        !is_tailsitter()) {
+        !is_tailsitter() &&
+        poscontrol.get_state() != QPOS_AIRBRAKE) {
         // we want the desired rates for fixed wing slaved to the
         // multicopter rates
         return false;
