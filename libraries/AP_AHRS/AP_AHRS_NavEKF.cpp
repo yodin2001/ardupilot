@@ -517,26 +517,6 @@ void AP_AHRS_NavEKF::reset(bool recover_eulers)
 #endif
 }
 
-// reset the current attitude, used on new IMU calibration
-void AP_AHRS_NavEKF::reset_attitude(const float &_roll, const float &_pitch, const float &_yaw)
-{
-    // support locked access functions to AHRS data
-    WITH_SEMAPHORE(_rsem);
-    
-    AP_AHRS_DCM::reset_attitude(_roll, _pitch, _yaw);
-    _dcm_attitude = {roll, pitch, yaw};
-#if HAL_NAVEKF2_AVAILABLE
-    if (_ekf2_started) {
-        _ekf2_started = EKF2.InitialiseFilter();
-    }
-#endif
-#if HAL_NAVEKF3_AVAILABLE
-    if (_ekf3_started) {
-        _ekf3_started = EKF3.InitialiseFilter();
-    }
-#endif
-}
-
 // dead-reckoning support
 bool AP_AHRS_NavEKF::get_position(struct Location &loc) const
 {
@@ -2504,6 +2484,29 @@ bool AP_AHRS_NavEKF::get_innovations(Vector3f &velInnov, Vector3f &posInnov, Vec
 #endif
     }
 
+    return false;
+}
+
+// returns true when the state estimates are significantly degraded by vibration
+bool AP_AHRS_NavEKF::is_vibration_affected() const
+{
+    switch (ekf_type()) {
+#if HAL_NAVEKF3_AVAILABLE
+    case EKFType::THREE:
+        return EKF3.isVibrationAffected(-1);
+#endif
+    case EKFType::NONE:
+#if HAL_NAVEKF2_AVAILABLE
+    case EKFType::TWO:
+#endif
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+    case EKFType::SITL:
+#endif
+#if HAL_EXTERNAL_AHRS_ENABLED
+    case EKFType::EXTERNAL:
+#endif
+        return false;
+    }
     return false;
 }
 

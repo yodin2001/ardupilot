@@ -251,12 +251,27 @@ configuration in order to save typing.
         action='store_true',
         default=False,
         help='Configure without EKF3.')
+
+    g.add_option('--ekf-double',
+        action='store_true',
+        default=False,
+        help='Configure EKF as double precision.')
+
+    g.add_option('--ekf-single',
+        action='store_true',
+        default=False,
+        help='Configure EKF as single precision.')
     
     g.add_option('--static',
         action='store_true',
         default=False,
         help='Force a static build')
 
+    g.add_option('--postype-single',
+        action='store_true',
+        default=False,
+        help='force single precision postype_t')
+    
 def _collect_autoconfig_files(cfg):
     for m in sys.modules.values():
         paths = []

@@ -133,13 +133,6 @@ void Plane::ahrs_update()
 {
     arming.update_soft_armed();
 
-#if HIL_SUPPORT
-    if (g.hil_mode == 1) {
-        // update hil before AHRS update
-        gcs().update_receive();
-    }
-#endif
-
     ahrs.update();
 
     if (should_log(MASK_LOG_IMU)) {
@@ -268,8 +261,12 @@ void Plane::one_second_loop()
     adsb.set_stall_speed_cm(aparm.airspeed_min);
     adsb.set_max_speed(aparm.airspeed_max);
 #endif
-    ahrs.writeDefaultAirSpeed((float)((aparm.airspeed_min + aparm.airspeed_max)/2),
-                              (float)((aparm.airspeed_max - aparm.airspeed_min)/2));
+
+    if (g2.flight_options & FlightOptions::ENABLE_DEFAULT_AIRSPEED) {
+        // use average of min and max airspeed as default airspeed fusion with high variance
+        ahrs.writeDefaultAirSpeed((float)((aparm.airspeed_min + aparm.airspeed_max)/2),
+                                  (float)((aparm.airspeed_max - aparm.airspeed_min)/2));
+    }
 
     // sync MAVLink system ID
     mavlink_system.sysid = g.sysid_this_mav;
