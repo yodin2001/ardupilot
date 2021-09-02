@@ -855,6 +855,8 @@ private:
     void calc_nav_yaw_ground(void);
 
     // Log.cpp
+    uint32_t last_log_fast_ms;
+
     void Log_Write_Fast(void);
     void Log_Write_Attitude(void);
     void Log_Write_Startup(uint8_t type);
@@ -1146,8 +1148,11 @@ private:
 
 public:
     void failsafe_check(void);
+#ifdef ENABLE_SCRIPTING
     bool set_target_location(const Location& target_loc) override;
     bool get_target_location(Location& target_loc) override;
+#endif // ENABLE_SCRIPTING
+
 };
 
 extern Plane plane;
