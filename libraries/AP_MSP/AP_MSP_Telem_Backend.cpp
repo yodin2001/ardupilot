@@ -677,13 +677,15 @@ MSPCommandResult AP_MSP_Telem_Backend::msp_process_out_name(sbuf_t *dst)
 
             sbuf_write_data(dst, buffer + start_position, strlen(buffer + start_position));  // max MSP_TXT_VISIBLE_CHARS chars general text...
         } else {
-            bool wind_en = false;
-            char flight_mode_str[MSP_TXT_BUFFER_SIZE];
-#if OSD_ENABLED
-            wind_en = osd->screen[0].wind.enabled;
-#endif
-            update_flight_mode_str(flight_mode_str, wind_en);
-            sbuf_write_data(dst, flight_mode_str, ARRAY_SIZE(flight_mode_str));  // rendered as up to MSP_TXT_VISIBLE_CHARS chars with UTF8 support
+            char buff[MSP_TXT_BUFFER_SIZE];
+            float rpm;
+            // first parameter is index into array of ESC's.  Hardwire to zero (first) for now.
+            AP::esc_telem().get_rpm(3, rpm);
+            float krpm = rpm * 0.001f;
+            const char *format = krpm < 9.995 ? "%3d%c %.2f%c" : (krpm < 99.95 ? "%3d%c %.1f%c" : "%3d%c %.0f%c");
+
+            snprintf(buff, MSP_TXT_BUFFER_SIZE, format, gcs().get_hud_throttle(), 0x25, krpm, 0x4B);
+            sbuf_write_data(dst, buff, ARRAY_SIZE(buff));
         }
     }
     return MSP_RESULT_ACK;
