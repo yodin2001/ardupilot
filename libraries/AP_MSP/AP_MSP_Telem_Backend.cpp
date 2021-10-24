@@ -682,7 +682,7 @@ MSPCommandResult AP_MSP_Telem_Backend::msp_process_out_name(sbuf_t *dst)
             // first parameter is index into array of ESC's.  Hardwire to zero (first) for now.
             AP::esc_telem().get_rpm(3, rpm);
             float krpm = rpm * 0.001f;
-            const char *format = krpm < 9.995 ? "%3d%c %.2f%c" : (krpm < 99.95 ? "%3d%c %.1f%c" : "%3d%c %.0f%c");
+            const char *format = krpm < 0.1 ? "%3d%c" : (krpm < 9.995 ? "%3d%c %.2f%c" : (krpm < 99.95 ? "%3d%c %.1f%c" : "%3d%c %.0f%c"));
 
             snprintf(buff, MSP_TXT_BUFFER_SIZE, format, gcs().get_hud_throttle(), 0x25, krpm, 0x4B);
             sbuf_write_data(dst, buff, ARRAY_SIZE(buff));
