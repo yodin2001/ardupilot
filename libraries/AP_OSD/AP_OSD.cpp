@@ -324,7 +324,7 @@ void AP_OSD::osd_thread()
     backend->osd_thread_run_once();
 
     while (true) {
-        hal.scheduler->delay(100);
+        hal.scheduler->delay(50);
         update_osd();
     }
 }
