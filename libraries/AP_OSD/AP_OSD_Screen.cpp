@@ -2178,7 +2178,7 @@ void AP_OSD_Screen::draw_power(uint8_t x, uint8_t y)
     if(!AP::battery().current_amps(amps, 0)) amps = 0;
     float pow = v*amps;
 
-    backend->write(x,y, false, "%3.0f%c", (double)pow, SYMBOL(SYM_WATT));
+    backend->write(x,y, false, "%3.0f%c", (double)pow, SYM_WATT);
 }
 
 #define DRAW_SETTING(n) if (n.enabled) draw_ ## n(n.xpos, n.ypos)
