@@ -1146,6 +1146,8 @@ uint8_t AP_OSD_AbstractScreen::symbols_lookup_table[AP_OSD_NUM_SYMBOLS];
 #define SYM_SIDEBAR_I 89
 #define SYM_SIDEBAR_J 90
 
+#define SYM_WATT 174
+
 #define SYMBOL(n) AP_OSD_AbstractScreen::symbols_lookup_table[n]
 
 // constructor
@@ -2169,6 +2171,16 @@ void AP_OSD_Screen::draw_rngf(uint8_t x, uint8_t y)
     }
 }
 
+void AP_OSD_Screen::draw_power(uint8_t x, uint8_t y)
+{
+    float v = AP::battery().voltage();
+    float amps;
+    if(!AP::battery().current_amps(amps, 0)) amps = 0;
+    float pow = v*amps;
+
+    backend->write(x,y, false, "%3.0f%c", (double)pow, SYMBOL(SYM_WATT));
+}
+
 #define DRAW_SETTING(n) if (n.enabled) draw_ ## n(n.xpos, n.ypos)
 
 #if HAL_WITH_OSD_BITMAP || HAL_WITH_MSP_DISPLAYPORT
@@ -2248,6 +2260,7 @@ void AP_OSD_Screen::draw(void)
     DRAW_SETTING(eff);
     DRAW_SETTING(callsign);
     DRAW_SETTING(current2);
+    DRAW_SETTING(power);
 }
 #endif
 #endif // OSD_ENABLED

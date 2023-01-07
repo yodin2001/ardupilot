@@ -301,6 +301,7 @@ private:
     void draw_fence(uint8_t x, uint8_t y);
 #endif
     void draw_rngf(uint8_t x, uint8_t y);
+    void draw_power(uint8_t x, uint8_t y);
 
     struct {
         bool load_attempted;
