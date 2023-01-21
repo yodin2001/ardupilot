@@ -1,0 +1,13 @@
+include ../JHEMCU_GH743AIO/hwdef.dat
+
+
+
+# MicroSD card on SPI3 (instead of flash)
+undef PA15 dataflash
+PA15 SDCARD_CS CS
+SPIDEV sdcard SPI3 DEVID1 SDCARD_CS  MODE0 400*KHZ 25*MHZ
+
+# filesystem setup on sdcard
+define HAL_OS_FATFS_IO 1
+define HAL_BOARD_LOG_DIRECTORY "/APM/LOGS"
+define HAL_BOARD_TERRAIN_DIRECTORY "/APM/TERRAIN"
